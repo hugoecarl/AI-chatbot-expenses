@@ -1,0 +1,4 @@
+id,pagador,valor,descricao,data,hora,tipo_pagamento,casa_pessoal,comentarios
+0,Neno,50.2,mercado,2021-06-25,14:27:37,cc,casa,Salada PDA
+1,Neno,149.99,casa,2021-06-25,14:28:35,cc,casa,Escrivaninha Leroy
+2,Neno,49.99,outros,2021-06-25,14:28:57,cc,pessoal,Linkedin Premium
