@@ -42,7 +42,6 @@ class SeleniumConf:
         input_box.send_keys(string + Keys.ENTER)
 
 
-
 class DespesasProgram:
     def __init__(self, Selenium):
         self.selenium = Selenium
@@ -54,24 +53,8 @@ class DespesasProgram:
         self.tipo_descrição = ['mercado', 'ifood', 'lazer', 'outros', 'restaurante', 'conta', 'aluguel', 'casa']
         self.message_list = None
 
-#for i in range(100):
-
- #   time.sleep(15)
-
     def parser_main(self,in_out, who):
         soup = BeautifulSoup(self.selenium.driver.page_source, "html.parser")
-        
-
-    # for i in soup.find_all("div", class_="message-in"):
-    #     message = i.find("span", class_="selectable-text")
-    #     try:
-    #         print(message.text)
-
-    #     except:
-    #         pass
-
-    # print('------------------------------------------------------')
-
         self.message_list = soup.find_all("div", class_="message-"+in_out)[-5:]
         for i in self.message_list:
             message = i.find("span", class_="selectable-text")
