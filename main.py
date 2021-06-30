@@ -8,6 +8,9 @@ import time
 from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
+import sys
+from io import StringIO
+import contextlib
   
 class SeleniumConf:
     def __init__(self):
@@ -26,6 +29,7 @@ class SeleniumConf:
         options.add_experimental_option('useAutomationExtension', False)
         self.driver = webdriver.Chrome('C:\\Users\\hugoc\\Desktop\\nenos\\chromedriver.exe', chrome_options=options)
         self.driver.get("https://web.whatsapp.com/")
+        return self.driver
         
 
     def enter_chat(self, tar):
@@ -45,13 +49,14 @@ class SeleniumConf:
 class DespesasProgram:
     def __init__(self, Selenium):
         self.selenium = Selenium
-        self.selenium.start()
+        self.driver = self.selenium.start()
         self.selenium.enter_chat('"Thing 3"')
         self.df = pd.read_csv('despesas_nenos.csv')
         self.tipo_pagamento = ['vr','va','cc','cd','din']
-        self.tipo_despesa = {'c':'casa','p':'pessoal','casa':'casa','pessoal':'pessoal'}
-        self.tipo_descrição = ['mercado', 'ifood', 'lazer', 'outros', 'restaurante', 'conta', 'aluguel', 'casa']
+        self.tipo_despesa = {'n':'nosso','p':'pessoal','nosso':'nosso','pessoal':'pessoal'}
+        self.tipo_categoria = ['mercado', 'ifood', 'lazer', 'outros', 'restaurante', 'conta', 'aluguel', 'casa', 'compras']
         self.message_list = None
+        self.mensagem_diferente = False
 
     def parser_main(self,in_out, who):
         soup = BeautifulSoup(self.selenium.driver.page_source, "html.parser")
@@ -64,9 +69,9 @@ class DespesasProgram:
                     msg = [i.strip() for i in msg]
                 else:
                     msg = message.text.split()
-                if float(msg[0]) not in self.df['valor'].values[-5:]:
-                    if msg[2].lower() not in self.tipo_pagamento or msg[3].lower() not in self.tipo_despesa or msg[1].lower() not in self.tipo_descrição:
-                        self.selenium.send_message("Nome grupos, tipo de pagamento ou despesa pessoal/casa errado!")
+                if float(msg[0]) not in self.df[self.df['pagador'] == who]['valor'].values[-5:]:
+                    if msg[2].lower() not in self.tipo_pagamento or msg[3].lower() not in self.tipo_despesa or msg[1].lower() not in self.tipo_categoria:
+                        self.selenium.send_message("Nome grupos, tipo de pagamento ou despesa pessoal/nosso errado!")
                         for i in range(4):
                             self.selenium.send_message("Espere " + str(3-i))  
                         self.selenium.send_message("Pode tentar de novo!")                 
@@ -79,22 +84,27 @@ class DespesasProgram:
                         self.selenium.send_message("Adicionado :)!")
             except:
                 pass
-        print('------------------------------------------------------')
+        #Avisa 0 msgens nena
+        if not self.message_list:
+            self.selenium.send_message('zero mensagens de' + who)
+        print('-----------------------------------------------------------------------------------')
         print(self.df)
         self.cancela(msg)
         self.delete_by_idx(msg)
         self.mostrar_infos(msg)
+        self.help(msg)
+        self.run_python_commands(msg)
         self.df_to_csv()
         return msg
 
     def cancela(self, msg):
-        if msg[0].lower() == 'cancela':
+        if msg[0][0:7].lower() == 'cancela':
             try:
                 if float(self.message_list[-2].find("span", class_="selectable-text").text.split()[0]) == self.df.iloc[-1,2]:
-                    self.selenium.send_message("Deletado: Descrição-"+self.df.iloc[-1,3]+", Valor-"+str(self.df.iloc[-1,2]))
+                    self.selenium.send_message("Deletado: Despesa-"+self.df.iloc[-1,8]+", Valor-"+str(self.df.iloc[-1,2]))
                     self.df = self.df[:-1]
                 else:
-                    self.selenium.send_message("Falha ao deletar: Descrição-"+self.df.iloc[-1,3]+", Valor-"+str(self.df.iloc[-1,2]))
+                    self.selenium.send_message("Falha ao deletar: Despesa-"+self.df.iloc[-1,8]+", Valor-"+str(self.df.iloc[-1,2]))
                     self.selenium.send_message("Tenta pelo id bb")
             except:
                 self.selenium.send_message("Erro ao usar o comando :(!")
@@ -102,7 +112,7 @@ class DespesasProgram:
     def delete_by_idx(self, msg):
         if msg[0][0:3].lower() == 'del':
             try:
-                df = self.df[self.df['id'] != int(msg[1])]
+                self.df = self.df[self.df['id'] != int(msg[1])]
                 self.selenium.send_message("Deletando...")
                 for i in range(3):
                     self.selenium.send_message(".")
@@ -113,19 +123,19 @@ class DespesasProgram:
     def mostrar_infos(self, msg):
         if msg[0][0:6].lower() == 'mostra':
             try:
-                #Mostra baseado na descricao
-                if msg[1].lower() == 'descricao' or msg[1].lower() == 'descrição':
-                    #Mostra de todos a soma do valor, numero de vezes e nome da descricao
+                #Mostra baseado na categoria
+                if msg[1].lower() == 'categoria':
+                    #Mostra de todos a soma do valor, numero de vezes e nome da categoria
                     if len(msg) == 2:
-                        for i in range(len(self.df.groupby(by='descricao').sum())):
-                            nome = self.df.groupby(by='descricao').sum().index[i]
-                            valor = self.df.groupby(by='descricao')['valor'].sum().iloc[i]
-                            n_vezes = self.df.groupby(by='descricao')['id'].count().iloc[i]
+                        for i in range(len(self.df.groupby(by='categoria').sum())):
+                            nome = self.df.groupby(by='categoria').sum().index[i]
+                            valor = self.df.groupby(by='categoria')['valor'].sum().iloc[i]
+                            n_vezes = self.df.groupby(by='categoria')['id'].count().iloc[i]
                             self.selenium.send_message("Nome: "+nome+", Número de Vezes: "+str(n_vezes)+", Valor Total: "+str(valor))
                     #Mostra infos do terceiro input
                     else:
-                        valor = self.df.groupby(by='descricao')['valor'].sum().loc[' '.join(msg[2:])]
-                        n_vezes = self.df.groupby(by='descricao')['valor'].count().loc[' '.join(msg[2:])]
+                        valor = self.df.groupby(by='categoria')['valor'].sum().loc[' '.join(msg[2:])]
+                        n_vezes = self.df.groupby(by='categoria')['valor'].count().loc[' '.join(msg[2:])]
                         self.selenium.send_message("Número de Vezes: "+str(n_vezes)+", Valor Total: "+str(valor))
                 elif msg[1].lower() == 'data':
                         data_format = msg[2].split('/')
@@ -136,26 +146,62 @@ class DespesasProgram:
                 #Mostra n ultimos no df baseado no segundo input
                 else:
                     for i in range(1, int(msg[1])+1):
-                        self.selenium.send_message("Id - "+str(self.df.iloc[-i,0])+ ", Descrição - "+self.df.iloc[-i,3]+", Valor - "+str(self.df.iloc[-i,2]))
+                        self.selenium.send_message("Id - "+str(self.df.iloc[-i,0])+ ", Categoria - "+self.df.iloc[-i,3]+", Valor - "+str(self.df.iloc[-i,2]))
             except:
                 self.selenium.send_message("Formato Mensagem errado")
 
+    def help(self, msg):
+        if msg[0].lower() == 'help':
+            self.selenium.send_message('Tipos de pagamento:' + str(self.tipo_pagamento))
+            self.selenium.send_message('Todas as categorias:' + str(self.tipo_categoria))
+            self.selenium.send_message('Formato para adicionar novos campos: valor,categoria,tipo_pagamento,nosso_pessoal,comentarios')
 
+    def run_python_commands(self, msg):
+            @contextlib.contextmanager
+            def stdoutIO(stdout=None):
+                old = sys.stdout
+                if stdout is None:
+                    stdout = StringIO()
+                sys.stdout = stdout
+                yield stdout
+                sys.stdout = old
+            try:
+                if msg[0].lower() == 'run':
+                    with stdoutIO() as s:
+                        exec(' '.join(msg[1:]).replace('”','"').replace('“', '"'))
+                    self.selenium.send_message(s.getvalue())
+            except Exception as e:
+                self.selenium.send_message(str(e))
+    
     def df_to_csv(self):
         self.df.to_csv("despesas_nenos.csv", index=False)
 
+    def get_driver(self):
+        return self.driver
+
     
 if __name__=="__main__":
+    break_code = 0
+    msg_nena = None
+    msg_neno = None
     selenium = SeleniumConf()
     despesas_program = DespesasProgram(selenium)    
     while True:
-        time.sleep(5)
-        despesas_program.parser_main("out", "Neno")
-        time.sleep(5)
-        despesas_program.parser_main("in", "Nena")
-      
-        
-
-
-
-
+        try:
+            time.sleep(5)
+            msg_neno = despesas_program.parser_main("out", "Neno", msg_neno)
+            time.sleep(5)
+            msg_nena = despesas_program.parser_main("in", "Nena", msg_nena)
+        except Exception as e:
+            despesas_program.get_driver().quit()
+            time.sleep(10)
+            selenium = SeleniumConf()
+            despesas_program = DespesasProgram(selenium)
+            break_code += 1
+            if break_code == 1:
+                print('entro')
+                despesas_program.get_driver().quit()
+                with open("error.txt", "a") as f:
+                    f.write(str(e) + '\n')
+                    f.close()
+                sys.exit()
