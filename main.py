@@ -24,10 +24,12 @@ class SeleniumConf:
         #options.add_argument('--disable-dev-shm-usage')
         #options.add_argument('--disable-gpu')
         options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36")
-        options.add_argument("user-data-dir=C:\\Users\\hugoc\\Desktop\\nenos")
+        options.add_argument("user-data-dir=./")
+        #options.add_argument("user-data-dir=C:\\Users\\hugoc\\Desktop\\nenos")
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option('useAutomationExtension', False)
-        self.driver = webdriver.Chrome('C:\\Users\\hugoc\\Desktop\\nenos\\chromedriver.exe', chrome_options=options)
+        self.driver = webdriver.Chrome('./chromedriver_armbian.exe', chrome_options=options)
+        #self.driver = webdriver.Chrome('C:\\Users\\hugoc\\Desktop\\nenos\\chromedriver.exe', chrome_options=options)
         self.driver.get("https://web.whatsapp.com/")
         return self.driver
         
@@ -58,7 +60,7 @@ class DespesasProgram:
         self.message_list = None
         self.mensagem_diferente = False
 
-    def parser_main(self,in_out, who):
+    def parser_main(self,in_out, who, flag_msg):
         soup = BeautifulSoup(self.selenium.driver.page_source, "html.parser")
         self.message_list = soup.find_all("div", class_="message-"+in_out)[-5:]
         for i in self.message_list:
@@ -84,6 +86,8 @@ class DespesasProgram:
                         self.selenium.send_message("Adicionado :)!")
             except:
                 pass
+        if msg == flag_msg:
+            return flag_msg
         #Avisa 0 msgens nena
         if not self.message_list:
             self.selenium.send_message('zero mensagens de' + who)
@@ -189,7 +193,7 @@ if __name__=="__main__":
     while True:
         try:
             time.sleep(5)
-            msg_neno = despesas_program.parser_main("out", "Neno", msg_neno)
+            msg_neno = despesas_program.parser_main("out", "Neno", None)
             time.sleep(5)
             msg_nena = despesas_program.parser_main("in", "Nena", msg_nena)
         except Exception as e:
