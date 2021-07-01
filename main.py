@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# coding: utf8
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -18,17 +20,15 @@ class SeleniumConf:
         
     def start(self):
         options = Options()
-        #options.binary_location = 'C:\\Users\\hugoc\\Desktop\\nenos\\chrome-win'
-        #options.add_argument('--no-sandbox')
-        #options.add_argument('--headless')
-        #options.add_argument('--disable-dev-shm-usage')
-        #options.add_argument('--disable-gpu')
+        options.add_argument('--headless')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-gpu')
         options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36")
         options.add_argument("user-data-dir=./")
         #options.add_argument("user-data-dir=C:\\Users\\hugoc\\Desktop\\nenos")
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option('useAutomationExtension', False)
-        self.driver = webdriver.Chrome('./chromedriver_armbian.exe', chrome_options=options)
+        self.driver = webdriver.Chrome('./chromedriver', chrome_options=options)
         #self.driver = webdriver.Chrome('C:\\Users\\hugoc\\Desktop\\nenos\\chromedriver.exe', chrome_options=options)
         self.driver.get("https://web.whatsapp.com/")
         return self.driver
@@ -97,7 +97,7 @@ class DespesasProgram:
         self.delete_by_idx(msg)
         self.mostrar_infos(msg)
         self.help(msg)
-        self.run_python_commands(msg)
+        #self.run_python_commands(msg)
         self.df_to_csv()
         return msg
 
@@ -160,22 +160,22 @@ class DespesasProgram:
             self.selenium.send_message('Todas as categorias:' + str(self.tipo_categoria))
             self.selenium.send_message('Formato para adicionar novos campos: valor,categoria,tipo_pagamento,nosso_pessoal,comentarios')
 
-    def run_python_commands(self, msg):
-            @contextlib.contextmanager
-            def stdoutIO(stdout=None):
-                old = sys.stdout
-                if stdout is None:
-                    stdout = StringIO()
-                sys.stdout = stdout
-                yield stdout
-                sys.stdout = old
-            try:
-                if msg[0].lower() == 'run':
-                    with stdoutIO() as s:
-                        exec(' '.join(msg[1:]).replace('”','"').replace('“', '"'))
-                    self.selenium.send_message(s.getvalue())
-            except Exception as e:
-                self.selenium.send_message(str(e))
+    # def run_python_commands(self, msg):
+    #         @contextlib.contextmanager
+    #         def stdoutIO(stdout=None):
+    #             old = sys.stdout
+    #             if stdout is None:
+    #                 stdout = StringIO()
+    #             sys.stdout = stdout
+    #             yield stdout
+    #             sys.stdout = old
+    #         try:
+    #             if msg[0].lower() == 'run':
+    #                 with stdoutIO() as s:
+    #                     exec(' '.join(msg[1:]).replace('”','"').replace('“', '"'))
+    #                 self.selenium.send_message(s.getvalue())
+    #         except Exception as e:
+    #             self.selenium.send_message(str(e))
     
     def df_to_csv(self):
         self.df.to_csv("despesas_nenos.csv", index=False)
@@ -198,12 +198,12 @@ if __name__=="__main__":
             msg_nena = despesas_program.parser_main("in", "Nena", msg_nena)
         except Exception as e:
             despesas_program.get_driver().quit()
-            time.sleep(10)
+            time.sleep(120)
             selenium = SeleniumConf()
             despesas_program = DespesasProgram(selenium)
             break_code += 1
-            if break_code == 1:
-                print('entro')
+            if break_code == 20:
+                selenium.send_message("Deu ruim")
                 despesas_program.get_driver().quit()
                 with open("error.txt", "a") as f:
                     f.write(str(e) + '\n')
