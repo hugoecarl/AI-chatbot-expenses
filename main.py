@@ -13,6 +13,8 @@ from datetime import datetime
 import sys
 from io import StringIO
 import contextlib
+import sheets_API 
+import time
   
 class SeleniumConf:
     def __init__(self):
@@ -20,10 +22,10 @@ class SeleniumConf:
         
     def start(self):
         options = Options()
-        options.add_argument('--headless')
-        options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--disable-gpu')
-        options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36")
+        #options.add_argument('--headless')
+        #options.add_argument('--disable-dev-shm-usage')
+        #options.add_argument('--disable-gpu')
+        #options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36")
         options.add_argument("user-data-dir=./")
         #options.add_argument("user-data-dir=C:\\Users\\hugoc\\Desktop\\nenos")
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
@@ -86,6 +88,7 @@ class DespesasProgram:
                         self.selenium.send_message("Adicionado :)!")
             except:
                 pass
+        #retorna para nao repetir comandos no caso de mensagens in
         if msg == flag_msg:
             return flag_msg
         #Avisa 0 msgens nena
@@ -93,30 +96,30 @@ class DespesasProgram:
             self.selenium.send_message('zero mensagens de' + who)
         print('-----------------------------------------------------------------------------------')
         print(self.df)
-        self.cancela(msg)
         self.delete_by_idx(msg)
         self.mostrar_infos(msg)
+        self.update(msg)
         self.help(msg)
         #self.run_python_commands(msg)
         self.df_to_csv()
         return msg
 
-    def cancela(self, msg):
-        if msg[0][0:7].lower() == 'cancela':
+    def update(self, msg):
+        if msg[0].lower() == 'update':
             try:
-                if float(self.message_list[-2].find("span", class_="selectable-text").text.split()[0]) == self.df.iloc[-1,2]:
-                    self.selenium.send_message("Deletado: Despesa-"+self.df.iloc[-1,8]+", Valor-"+str(self.df.iloc[-1,2]))
-                    self.df = self.df[:-1]
-                else:
-                    self.selenium.send_message("Falha ao deletar: Despesa-"+self.df.iloc[-1,8]+", Valor-"+str(self.df.iloc[-1,2]))
-                    self.selenium.send_message("Tenta pelo id bb")
-            except:
-                self.selenium.send_message("Erro ao usar o comando :(!")
-            
+                lin, col = msg[1].split(',')
+                self.df.iloc[int(lin)-2,int(col)-1] = float(msg[2]) if msg[2].isnumeric() else msg[2]
+                self.selenium.send_message("Alterado! =D")
+            except Exception as e:
+                self.selenium.send_message(str(e))
+
     def delete_by_idx(self, msg):
         if msg[0][0:3].lower() == 'del':
             try:
-                self.df = self.df[self.df['id'] != int(msg[1])]
+                if int(msg[1]) == -1:
+                    self.df = self.df.iloc[:-1]
+                else:
+                    self.df = self.df[self.df['id'] != int(msg[1])]
                 self.selenium.send_message("Deletando...")
                 for i in range(3):
                     self.selenium.send_message(".")
@@ -189,20 +192,26 @@ if __name__=="__main__":
     msg_nena = None
     msg_neno = None
     selenium = SeleniumConf()
-    despesas_program = DespesasProgram(selenium)    
+    despesas_program = DespesasProgram(selenium)
+    update_sheet_flag = time.time()   
+    sheets_API.Export_Data_To_Sheets() 
     while True:
         try:
-            time.sleep(5)
+            time.sleep(3)
             msg_neno = despesas_program.parser_main("out", "Neno", None)
-            time.sleep(5)
+            time.sleep(3)
             msg_nena = despesas_program.parser_main("in", "Nena", msg_nena)
+            if time.time() - update_sheet_flag > 1000:
+                sheets_API.Export_Data_To_Sheets()
+                update_sheet_flag = time.time()
         except Exception as e:
             despesas_program.get_driver().quit()
             time.sleep(120)
             selenium = SeleniumConf()
             despesas_program = DespesasProgram(selenium)
+            update_sheet_flag = time.time()
             break_code += 1
-            if break_code == 20:
+            if break_code == 30:
                 selenium.send_message("Deu ruim")
                 despesas_program.get_driver().quit()
                 with open("error.txt", "a") as f:

@@ -1,0 +1,4 @@
+setuptools
+beautifulsoup4
+selenium
+pandas
